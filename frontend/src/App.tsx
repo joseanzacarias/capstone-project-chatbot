@@ -4,10 +4,22 @@ import './App.css'
 
 
 function App() {
+
+  interface Message {
+    role: 'user' | 'assistant';
+    content: string;
+  }
+
   const [transcript, setTranscript] = useState('');
   const [response, setResponse] = useState<string>('');
   const recognition = useRef<any>(null);
   const conversation = useRef<string[]>([]);
+
+  // const [fullConversation, setFullConversation] = useState<Message[]>([]);
+  // const fullConversation = useRef<Message[]>([]);
+  const fullConversation = useRef<Message[]>([]);
+  const [userInput, setUserInput] = useState('');
+  const [loading, setLoading] = useState(false);
 
 
   const startRecognition = () => {
@@ -18,11 +30,9 @@ function App() {
       return;
     }
 
-    // setRecognition(new SpeechRecognition());
     recognition.current = new SpeechRecognition();
-    recognition.current.continuous = true;
-    recognition.current.interimResults = true;
-    console.log("recognition 2", recognition);
+    recognition.current.continuous = false;
+    recognition.current.interimResults = false;
 
     recognition.current.onresult = (event) => {
       let finalTranscript = '';
@@ -31,23 +41,31 @@ function App() {
           finalTranscript += event.results[i][0].transcript;
         }
       }
-      console.log("finalTranscript", finalTranscript);
-      setTranscript(finalTranscript);
-      conversation.current.push(finalTranscript);
-      // fetchLLMResponse(transcript)
-      
-    };
 
+      fullConversation.current.push({ role: 'user', content: finalTranscript });
+      
+
+      console.log('fullConversation', fullConversation);
+      
+
+      fetchLLMResponse(fullConversation.current)
+      setLoading(true);
+    };
     recognition.current.start();
   }
 
-  const fetchLLMResponse = async (prompt) => {
+  const stopRecord = () => {
+    if (!recognition.current) return
+    recognition.current.stop();
+  }
+
+  const fetchLLMResponse = async (messages) => {
     const apiUrl = "http://localhost:1234/v1/chat/completions";
     
     const data = {
       model: "local-model",
       // prompt: prompt,
-      messages: [{ role: 'user', content: 'Hello how are you?' }],
+      messages,
       temperature: 0.7
     };
 
@@ -68,27 +86,36 @@ function App() {
       const result = await res.json();
       setResponse(result.choices[0].message.content);
       conversation.current.push(result.choices[0].message.content);
+      // -------
+      const assistantMessage = result.choices[0].message.content;
+
+      // Update conversation with the assistant's response
+      // setFullConversation([
+      //   ...messages,
+      //   { role: 'assistant', content: assistantMessage },
+      // ]);
+
+      fullConversation.current.push({ role: 'assistant', content: assistantMessage });
+      setUserInput('');
     } catch (error) {
       console.error("Error fetching response:", error);
       setResponse("Failed to fetch the response");
+    } finally {
+      setLoading(false);
     }
   };
-
-  
-
 
   return (
     <>
     <div className='flex flex-col justify-center items-center p-8 gap-y-4'>
       <div className='h-[40rem] w-[70%] flex flex-col justify-end items-start border botder-gray-400 gap-y-4 p-4'>
-        {conversation.current.map((item, index) => (
-          <span className='bg-gray-600 p-2 rounded-lg' key={index}>{item}</span>
+        {fullConversation.current.map((item, index) => (
+          <span className='bg-gray-600 p-2 rounded-lg' key={index}>{item.content ?? 'nan'}</span>
         ))}
       </div>
       <div className='flex justify-center gap-x-8'>
         <button onClick={() => startRecognition()}>Start</button>
-        <button severity="danger" onClick={recognition.current && recognition.current.stop()}>Stop</button>
-        <button onClick={() => fetchLLMResponse('Whats the capital of venezuela, give me a short answer')}>Get response</button>
+        <button className='btn-danger' onClick={() => stopRecord()}>Stop</button>
       </div>
     </div>
     </>

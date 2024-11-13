@@ -1,19 +1,23 @@
-import { useRef, useState } from 'react'
-import './App.css'
-    
+import { useRef, useState } from 'react';
+import './App.css';
+import {TEST_SCENARIO} from './scenarios/prompts';
+import React, { useEffect } from 'react';
 
 
 function App() {
 
   interface Message {
-    role: 'user' | 'assistant';
+    role: 'user' | 'system' | 'assistant';
     content: string;
   }
 
-  const [transcript, setTranscript] = useState('');
   const [response, setResponse] = useState<string>('');
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const recognition = useRef<any>(null);
   const conversation = useRef<string[]>([]);
+  const isRecording = useRef(false);
+  const currentTranscript = useRef('');
+
 
   // const [fullConversation, setFullConversation] = useState<Message[]>([]);
   // const fullConversation = useRef<Message[]>([]);
@@ -21,42 +25,68 @@ function App() {
   const [userInput, setUserInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Testing constant for ElevenLabs TTS
+  const testText: string = "I never thought it would feel this empty. Every corner of this room, once filled with laughter, now feels like a distant memory. Its strange how silence can feel so loud, echoing the moments that are now just memories.";
+  
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  useEffect(() => {
+
+    if (fullConversation.current.length > 0) return
+    console.log("Component did mount");
+    
+    fullConversation.current.push({ role: 'system', content: TEST_SCENARIO });
+    fetchLLMResponse(fullConversation.current)
+
+    // return () => {
+    //   console.log("Component will unmount");
+    // };
+  }, []); // Empty dependency array ensures it only runs once
+
 
   const startRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
+    
     if (!SpeechRecognition) {
       alert("Your browser does not support Speech Recognition.");
       return;
     }
 
     recognition.current = new SpeechRecognition();
-    recognition.current.continuous = false;
-    recognition.current.interimResults = false;
+    console.log(recognition.current)
+    recognition.current.continuous = true;
+    recognition.current.interimResults = true;
 
-    recognition.current.onresult = (event) => {
-      let finalTranscript = '';
+
+    recognition.current.onresult = async (event) => {
+      if (isRecording.current) return
+      currentTranscript.current = '';
+
+      console.log("event.results", event.results);
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
+        console.log("event.results[i][0].transcript", event.results[i][0].transcript);
+        currentTranscript.current += event.results[i][0].transcript;
       }
-
-      fullConversation.current.push({ role: 'user', content: finalTranscript });
-      
-
-      console.log('fullConversation', fullConversation);
-      
-
-      fetchLLMResponse(fullConversation.current)
-      setLoading(true);
     };
+    
     recognition.current.start();
-  }
+    isRecording.current = true;
+  };
 
-  const stopRecord = () => {
-    if (!recognition.current) return
+  const stopRecord =  async () => {
+    isRecording.current = false;
     recognition.current.stop();
+    await delay(100);
+    console.log("Stop recording", currentTranscript.current);
+    fullConversation.current.push({ role: 'user', content: currentTranscript.current });
+      
+    setLoading(true);
+    await fetchLLMResponse(fullConversation.current)
+    currentTranscript.current = '';
+    setLoading(false);
+    
   }
 
   const fetchLLMResponse = async (messages) => {
@@ -96,6 +126,8 @@ function App() {
       // ]);
 
       fullConversation.current.push({ role: 'assistant', content: assistantMessage });
+      console.log('fullConversation', fullConversation.current);
+      
       setUserInput('');
     } catch (error) {
       console.error("Error fetching response:", error);
@@ -105,17 +137,54 @@ function App() {
     }
   };
 
+  
+  // Function to fetch audio from ElevenLabs
+  const playGeneratedAudio = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: testText }), // replace with fetchLLMResponse output if needed
+      });
+
+      if (!res.ok) {
+        throw new Error(`Error: ${res.statusText}`);
+      }
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      setAudioSrc(audioUrl);
+    } catch (error) {
+      console.error('Error fetching audio from ElevenLabs:', error);
+    }
+  };
+  
+
   return (
     <>
     <div className='flex flex-col justify-center items-center p-8 gap-y-4'>
-      <div className='h-[40rem] w-[70%] flex flex-col justify-end items-start border botder-gray-400 gap-y-4 p-4'>
+      <div className='h-[40rem] w-[50%] block items-start border border-gray-400 gap-y-4 p-4 overflow-y-auto'>
         {fullConversation.current.map((item, index) => (
-          <span className='bg-gray-600 p-2 rounded-lg' key={index}>{item.content ?? 'nan'}</span>
+            item.role !== 'system' && index > 1 && (
+              <div className={`flex w-full ${item.role === 'user' ? 'justify-end' : 'justify-start'} `}>
+                <span className={`max-w-[60%] flex  p-4 rounded-lg mt-4 ${item.role === 'user' ? 'bg-green-900' : 'bg-gray-500'} `} key={index}>
+                  {item.content ?? 'nan'}
+                </span>
+              </div>
+            )
+          // <span className='flex bg-gray-600 p-4 rounded-lg' key={index}>{item.content ?? 'nan'}</span>
         ))}
       </div>
       <div className='flex justify-center gap-x-8'>
         <button onClick={() => startRecognition()}>Start</button>
         <button className='btn-danger' onClick={() => stopRecord()}>Stop</button>
+      </div>
+
+      <div className='flex justify-center gap-x-8'>
+        <button onClick={playGeneratedAudio}>Play Audio from ElevenLabs</button>
+        <div>
+          {audioSrc && <audio src={audioSrc} controls autoPlay />}
+        </div>
       </div>
     </div>
     </>
@@ -123,4 +192,3 @@ function App() {
 }
 
 export default App
-

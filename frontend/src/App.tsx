@@ -1,7 +1,11 @@
+import 'regenerator-runtime/runtime';
 import { useRef, useState } from 'react';
 import './App.css';
-import {TEST_SCENARIO} from './scenarios/prompts';
+import {TEST_SCENARIO, SECOND_SCENARIO} from './scenarios/prompts';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import React, { useEffect } from 'react';
+import debuonce from 'lodash/debounce';
+import delay from 'lodash/delay';
 
 
 function App() {
@@ -24,13 +28,17 @@ function App() {
   const fullConversation = useRef<Message[]>([]);
   const [userInput, setUserInput] = useState('');
   const [loading, setLoading] = useState(false);
+    // Initialize react-speech-recognition hook variables
+    const { transcript, listening, resetTranscript } = useSpeechRecognition();
+
+    // Check if the browser supports speech recognition
+    if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
+      alert("Your browser does not support Speech Recognition.");
+    }
+  
 
   // Testing constant for ElevenLabs TTS
   const testText: string = "I never thought it would feel this empty. Every corner of this room, once filled with laughter, now feels like a distant memory. Its strange how silence can feel so loud, echoing the moments that are now just memories.";
-  
-  function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
   
   useEffect(() => {
 
@@ -45,49 +53,87 @@ function App() {
     // };
   }, []); // Empty dependency array ensures it only runs once
 
-
   const startRecognition = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      alert("Your browser does not support Speech Recognition.");
-      return;
-    }
-
-    recognition.current = new SpeechRecognition();
-    console.log(recognition.current)
-    recognition.current.continuous = true;
-    recognition.current.interimResults = true;
-
-
-    recognition.current.onresult = async (event) => {
-      if (isRecording.current) return
-      currentTranscript.current = '';
-
-      console.log("event.results", event.results);
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        console.log("event.results[i][0].transcript", event.results[i][0].transcript);
-        currentTranscript.current += event.results[i][0].transcript;
-      }
-    };
-    
-    recognition.current.start();
-    isRecording.current = true;
+    resetTranscript(); // Reset transcript before starting new recording
+    SpeechRecognition.startListening({ continuous: true }); // Start continuous listening
   };
 
-  const stopRecord =  async () => {
-    isRecording.current = false;
-    recognition.current.stop();
-    await delay(100);
-    console.log("Stop recording", currentTranscript.current);
-    fullConversation.current.push({ role: 'user', content: currentTranscript.current });
-      
-    setLoading(true);
-    await fetchLLMResponse(fullConversation.current)
-    currentTranscript.current = '';
-    setLoading(false);
+
+  // const startRecognition = async () => {
+  //   isRecording.current = true;
+  //   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
+  //   if (!SpeechRecognition) {
+  //     alert("Your browser does not support Speech Recognition.");
+  //     return;
+  //   }
+
+  //   recognition.current = new SpeechRecognition();
+  //   console.log(recognition.current)
+  //   recognition.current.continuous = false;
+  //   recognition.current.interimResults = false;
+
+
+  //   // recognition.current.onresult = throttle(onResult, 100);
+  //   recognition.current.onresult = onResult;
+    
+  //   recognition.current.start();
+  // };
+
+  // function onResult(event) {
+  //   console.log("isRecording.current", isRecording.current);
+      
+  //   if (isRecording.current) return
+  //   console.log("isRecording.current 2222", isRecording.current);
+  //   // currentTranscript.current = '';
+  //   let finalTranscript = ''
+
+  //   console.log("event.results", event.results);
+  //   for (let i = event.resultIndex; i < event.results.length; ++i) {
+  //     if (event.results[i].isFinal) {
+  //       console.log("event.results[i][0].transcript", event)
+  //       currentTranscript.current += event.results[i][0].transcript
+  //     }
+      
+  //   }
+  //   console.log("currentTranscript.current", currentTranscript.current);
+
+  //   if (isRecording.current) return
+  //   fullConversation.current.push({ role: 'user', content: currentTranscript.current });
+  //   fetchLLMResponse(fullConversation.current)
+  //   currentTranscript.current = '';
+    
+    
+  // }
+
+   // Stop recording and handle transcript after recording is stopped
+   const stopRecord = async () => {
+    SpeechRecognition.stopListening(); // Stop listening
+    console.log("Stop recording", transcript);
+
+    // Push user transcript into conversation
+    fullConversation.current.push({ role: 'user', content: transcript });
+    setLoading(true);
+    await fetchLLMResponse(fullConversation.current); // Fetch response after recording
+    resetTranscript(); // Clear transcript for next session
+    setLoading(false);
+  };
+
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+
+
+  // const stopRecord =  async () => {
+  //   recognition.current.stop();
+  //   isRecording.current = false;
+  //   setLoading(true);
+  //   // fullConversation.current.push({ role: 'user', content: currentTranscript.current });
+  //   // fetchLLMResponse(fullConversation.current)
+  //   setLoading(false);
+  //   // recognition.current.onresult = throttle(onResult, 100);
+  // }
 
   const fetchLLMResponse = async (messages) => {
     const apiUrl = "http://localhost:1234/v1/chat/completions";
@@ -126,6 +172,9 @@ function App() {
       // ]);
 
       fullConversation.current.push({ role: 'assistant', content: assistantMessage });
+      if(fullConversation.current.length > 2) {
+        playGeneratedAudio(assistantMessage)
+      }
       console.log('fullConversation', fullConversation.current);
       
       setUserInput('');
@@ -139,12 +188,12 @@ function App() {
 
   
   // Function to fetch audio from ElevenLabs
-  const playGeneratedAudio = async () => {
+  const playGeneratedAudio = async (textToSpeech) => {
     try {
       const res = await fetch('http://localhost:5000/synthesize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: testText }), // replace with fetchLLMResponse output if needed
+        body: JSON.stringify({ text: textToSpeech }), // replace with fetchLLMResponse output if needed
       });
 
       if (!res.ok) {
@@ -166,7 +215,7 @@ function App() {
       <div className='h-[40rem] w-[50%] block items-start border border-gray-400 gap-y-4 p-4 overflow-y-auto'>
         {fullConversation.current.map((item, index) => (
             item.role !== 'system' && index > 1 && (
-              <div className={`flex w-full ${item.role === 'user' ? 'justify-end' : 'justify-start'} `}>
+              <div className={`flex w-full ${item.role === 'user' ? 'justify-end' : 'justify-start'} `} key={index}>
                 <span className={`max-w-[60%] flex  p-4 rounded-lg mt-4 ${item.role === 'user' ? 'bg-green-900' : 'bg-gray-500'} `} key={index}>
                   {item.content ?? 'nan'}
                 </span>
@@ -181,9 +230,8 @@ function App() {
       </div>
 
       <div className='flex justify-center gap-x-8'>
-        <button onClick={playGeneratedAudio}>Play Audio from ElevenLabs</button>
         <div>
-          {audioSrc && <audio src={audioSrc} controls autoPlay />}
+          <audio src={audioSrc || ''} controls autoPlay />
         </div>
       </div>
     </div>

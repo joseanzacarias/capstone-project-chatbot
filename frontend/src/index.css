@@ -1,3 +1,4 @@
+@import '@fortawesome/fontawesome-free/css/all.min.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,7 +10,15 @@
 }
 
 body {
-  @apply bg-zinc-800 text-white h-screen;
+  @apply bg-gray-900 text-white h-screen;
+}
+
+select {
+  @apply bg-gray-800 text-white rounded-lg p-2;
+}
+
+option {
+  @apply text-black bg-white;
 }
 
 button {

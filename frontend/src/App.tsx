@@ -2,6 +2,7 @@ import 'regenerator-runtime/runtime';
 import { useRef, useState } from 'react';
 import './App.css';
 import { TEST_SCENARIO } from './scenarios/prompts';
+import { feedbackPrompt } from './scenarios/feedback-prompt';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import React, { useEffect } from 'react';
 
@@ -13,7 +14,8 @@ function App() {
 
   const [response, setResponse] = useState<string>('');
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
-  const conversation = useRef<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [feedback, setFeedback] = useState<string>('');
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [generatingFeedback, setGeneratingFeedback] = useState<boolean>(false);
   const [isFeedbackGenerated, setIsFeedbackGenerated] = useState<boolean>(false);
@@ -24,33 +26,6 @@ function App() {
   const { transcript, resetTranscript } = useSpeechRecognition();
 
   const textTest = 'Sure! We offer a wide range of services, including web development, mobile app development, and more. How can I assist you further?'
-
-  const conversationTest = [
-    { role: 'system', content: TEST_SCENARIO },
-    { role: 'user', content: 'Hello' },
-    { role: 'assistant', content: 'Hi there! How can I help you today?' },
-    { role: 'user', content: 'Can you tell me more about your services?' },
-    {
-      role: 'assistant',
-      content:
-        'Sure! We offer a wide range of services, including web development, mobile app development, and more. How can I assist you further?',
-    },
-    { role: 'user', content: 'Can you help me with a project?' },
-    { role: 'assistant', content: 'Of course! Please provide me with more details about your project and I will do my best to assist you.' },
-    { role: 'user', content: 'I need help with a mobile app development project.' },
-    { role: 'assistant', content: 'Great! What specific help do you need with your mobile app development project?' },
-    { role: 'user', content: 'I need help with designing the user interface.' },
-    { role: 'user', content: 'Can you help me with a project?' },
-    { role: 'assistant', content: 'Of course! Please provide me with more details about your project and I will do my best to assist you.' },
-    { role: 'user', content: 'I need help with a mobile app development project.' },
-    { role: 'assistant', content: 'Great! What specific help do you need with your mobile app development project?' },
-    { role: 'user', content: 'I need help with designing the user interface.' },
-    { role: 'user', content: 'Can you help me with a project?' },
-    { role: 'assistant', content: 'Of course! Please provide me with more details about your project and I will do my best to assist you.' },
-    { role: 'user', content: 'I need help with a mobile app development project.' },
-    { role: 'assistant', content: 'Great! What specific help do you need with your mobile app development project?' },
-    { role: 'user', content: 'I need help with designing the user interface.' },
-    ]
 
   useEffect(() => {
     if (fullConversation.current.length > 0) return;
@@ -87,19 +62,22 @@ function App() {
 
   const toggleRecording = async () => {
     if (isRecording) {
-      // Stop Recording
+      // Stop recording
+      setIsRecording(false); // Ensure the button switches immediately
       SpeechRecognition.stopListening();
       fullConversation.current.push({ role: 'user', content: transcript });
+      await fetchLLMResponse(fullConversation.current);
       resetTranscript();
     } else {
-      // Start Recording
+      // Start recording
       resetTranscript();
+      setIsRecording(true);
       SpeechRecognition.startListening({ continuous: true });
     }
-    setIsRecording(!isRecording);
   };
 
   const fetchLLMResponse = async (messages: Message[]) => {
+    setIsLoading(true);
     try {
       const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
         method: 'POST',
@@ -122,40 +100,72 @@ function App() {
         role: 'assistant',
         content: result.choices[0].message.content,
       });
+      if(fullConversation.current.length > 2) {
+        // playGeneratedAudio(result.choices[0].message.content);
+      }
     } catch (error) {
       setResponse('Failed to fetch response');
     }
+    setIsLoading(false);
   };
 
-  // const playGeneratedAudio = async (textToSpeech: string) => {
-  //   try {
-  //     const res = await fetch('http://localhost:5000/synthesize', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({ text: textToSpeech, voice: selectedVoice }),
-  //     });
+  const fetchFeedback = async (feedbackMessage: string) => {
+    setGeneratingFeedback(true); // Start feedback generation
+    try {
+      const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer lm-studio`, },
+        body: JSON.stringify({
+          model: 'local-model',
+          messages: [{
+            role: 'system',
+            content: feedbackMessage
+          }],
+          temperature: 0.7,
+        })
+      });
 
-  //     if (!res.ok) {
-  //       throw new Error(`Error: ${res.statusText}`);
-  //     }
+      if (!res.ok) {
+        throw new Error(`Error: ${res.statusText}`);
+      }
 
-  //     const audioBlob = await res.blob();
-  //     const audioUrl = URL.createObjectURL(audioBlob);
-  //     setAudioSrc(audioUrl);
-  //   } catch (error) {
-  //     console.error('Error fetching audio from ElevenLabs:', error);
-  //   }
-  // };
+      const result = await res.json();
+      setFeedback(result.choices[0].message.content);
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+    }
+    setGeneratingFeedback(false); // Stop feedback generation
+  }
+
+  const playGeneratedAudio = async (textToSpeech: string) => {
+    try {
+      const res = await fetch('http://localhost:5000/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToSpeech, voice: selectedVoice }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Error: ${res.statusText}`);
+      }
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      setAudioSrc(audioUrl);
+    } catch (error) {
+      console.error('Error fetching audio from ElevenLabs:', error);
+    }
+  };
 
   const stopSession = async () => {
-    setGeneratingFeedback(true); // Start feedback generation
     scrollToBottom();
-
-    // Simulate feedback generation (replace this with actual API call if needed)
-    setTimeout(() => {
-      setGeneratingFeedback(false); // Stop feedback generation
-      setIsFeedbackGenerated(true); // Feedback generated
-    }, 2000);
+    const conversation = fullConversation.current.map((item, index) => {
+      if(index > 1){
+        return `${item.role === 'assistant' ? 'Assistant' : 'User'}: ${item.content}`;
+      }
+    }).join('\n');
+    const fullPrompt = `${feedbackPrompt} \n ${conversation}`;
+    await fetchFeedback(fullPrompt);
   };
 
   return (
@@ -177,9 +187,10 @@ function App() {
 
       {/* Chat Area */}
       <div className="flex-1 bg-gray-100 overflow-y-auto p-4">
-        {conversationTest.map(
-          (item, index) =>
-            item.role !== 'system' && (
+        {fullConversation.current.map(
+          (item, index) =>{
+            if(index > 1){
+            return item.role !== 'system' && (
               <div
                 key={index}
                 className={`flex w-full ${
@@ -196,7 +207,7 @@ function App() {
                   {item.content}
                 </div>
               </div>
-            )
+            )}}
         )}  
            {/* Generating Feedback */}
         {generatingFeedback && (
@@ -204,6 +215,15 @@ function App() {
             <div className="flex items-center gap-2 text-gray-600">
               <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-transparent rounded-full"></div>
               <span>Generating feedback...</span>
+            </div>
+          </div>
+        )}
+        {/* Waiting for Assistant */}
+        {isLoading && (
+          <div className="flex justify-start items-center px-4 py-2">
+            <div className="flex items-center gap-2 text-gray-600">
+              <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-transparent rounded-full"></div>
+              <span>Waiting for assistant...</span>
             </div>
           </div>
         )}
@@ -215,6 +235,15 @@ function App() {
             </div>
           </div>
         )}
+        {/* Feedback */}
+        {feedback && (
+          <div className="flex w-full justify-start mb-4">
+            <div className="max-w-[60%] px-4 py-2 rounded-lg bg-green-300 text-black">
+              {feedback}
+            </div>
+          </div>
+        )}
+        {/* Response */}
         <div ref={chatEndRef}></div>
         
       </div>
@@ -235,9 +264,9 @@ function App() {
           {/* Stop Session Button */}
           <button
             onClick={stopSession}
-            disabled={isRecording}
+            disabled={isRecording || isLoading}
             className={`flex items-center justify-center px-4 py-2 rounded-full border transition-colors font-medium ${
-              isRecording
+              (isRecording || isLoading)
                 ? 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
             }`}
@@ -248,8 +277,13 @@ function App() {
           {/* Toggle Recording Button */}
           <button
             onClick={toggleRecording}
-            className={`flex items-center justify-center w-12 h-12 rounded-full text-white transition-colors ${
-              isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+            disabled={isLoading}
+            className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
+              isRecording
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : isLoading
+                ? 'bg-gray-300 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
             }`}
           >
             <i className={`fas ${isRecording ? 'fa-square' : 'fa-microphone'}`}></i>

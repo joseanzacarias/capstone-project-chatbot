@@ -1,7 +1,7 @@
 import 'regenerator-runtime/runtime';
 import { useRef, useState } from 'react';
 import './App.css';
-import { TEST_SCENARIO } from './scenarios/prompts';
+import { TEST_SCENARIO, SECOND_SCENARIO, GOLD_STANDARD, HEALTH_GOLD_STANDARD } from './scenarios/prompts';
 import { feedbackPrompt } from './scenarios/feedback-prompt';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import React, { useEffect } from 'react';
@@ -12,6 +12,32 @@ function App() {
     content: string;
   }
 
+  const scenariosData = [
+    {
+      id: "1",
+      name: "Basic scenario",
+      description: "Lazy student scenario",
+      voiceId: 'iP95p4xoKVk53GoZ742B',
+      systemPropmt: SECOND_SCENARIO
+    },
+    {
+      id:"2",
+      name: "Confidentiality",
+      description: "Gold Standard",
+      voiceId: 'IKne3meq5aSn9XLyUdCD',
+      systemPropmt: GOLD_STANDARD
+    },
+    {
+      id: "3",
+      name: "Health Assesment",
+      description: "Gold Standard",
+      voiceId: 'cgSgspJ2msm6clMCkdW9',
+      systemPropmt: HEALTH_GOLD_STANDARD
+    }
+    
+  ]
+
+
   const [response, setResponse] = useState<string>('');
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -21,11 +47,10 @@ function App() {
   const [isFeedbackGenerated, setIsFeedbackGenerated] = useState<boolean>(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>('iP95p4xoKVk53GoZ742B');
+  const selectedScenario = useRef(scenariosData[0]);
 
   const fullConversation = useRef<Message[]>([]);
   const { transcript, resetTranscript } = useSpeechRecognition();
-
-  const textTest = 'Sure! We offer a wide range of services, including web development, mobile app development, and more. How can I assist you further?'
 
   useEffect(() => {
     if (fullConversation.current.length > 0) return;
@@ -55,7 +80,6 @@ function App() {
       avatar: 'https://via.placeholder.com/40',
     },
   };
-
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -79,7 +103,7 @@ function App() {
   const fetchLLMResponse = async (messages: Message[]) => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
+      const res = await fetch('http://localhost:1234/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +112,8 @@ function App() {
         body: JSON.stringify({
           model: 'local-model',
           messages,
-          temperature: 0.7,
+          temperature: 0.91,
+          "max_tokens": 200
         }),
       });
 
@@ -112,7 +137,7 @@ function App() {
   const fetchFeedback = async (feedbackMessage: string) => {
     setGeneratingFeedback(true); // Start feedback generation
     try {
-      const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
+      const res = await fetch('http://localhost:1234/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer lm-studio`, },
         body: JSON.stringify({
@@ -142,7 +167,7 @@ function App() {
       const res = await fetch('http://localhost:5000/synthesize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToSpeech, voice: selectedVoice }),
+        body: JSON.stringify({ text: textToSpeech, voice: selectedScenario.current.voiceId }),
       });
 
       if (!res.ok) {
@@ -168,18 +193,38 @@ function App() {
     await fetchFeedback(fullPrompt);
   };
 
+  const onScenariosChange = (id: string | number) => {
+    console.log("scenarios changes", id);
+    console.log(typeof id);
+
+    const idx = scenariosData.findIndex((s) => s.id === id)
+    console.log("current", idx);
+
+    if (idx === -1) {
+      console.error('Invalid scenario ID');
+      return;
+    }
+    
+    
+    selectedScenario.current = scenariosData[idx]
+    fullConversation.current = [];
+    fullConversation.current.push({ role: 'system', content: selectedScenario.current.systemPropmt });
+    fetchLLMResponse(fullConversation.current);
+
+  };
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
       <div className="bg-gray-800 text-white p-4 shadow-md flex justify-start items-start">
         <select
-          value={selectedVoice}
-          onChange={(e) => setSelectedVoice(e.target.value)}
+          value={selectedScenario.current.id}
+          onChange={(e) => onScenariosChange(e.target.value)}
           className="bg-gray-700 text-white text-base p-2 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          {Object.entries(voiceDetails).map(([voiceId, details]) => (
-            <option key={voiceId} value={voiceId} className="text-black">
-              {details.name} - {details.description}
+          {scenariosData.map((scenario) => (
+            <option key={scenario.name} value={scenario.id} className="text-black cursor-pointer">
+              {scenario.name} - {scenario.description}
             </option>
           ))}
         </select>

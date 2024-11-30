@@ -1,9 +1,9 @@
 export const feedbackPrompt = `You are tasked with analyzing a conversation between two participants, one tagged as "[facilitator]" and the other as "[learner]." The goal is to assess whether the facilitator effectively applies Advocacy-Inquiry techniques to facilitate meaningful reflection and learning.
-Use the following Criteria to support your analisys:
+Use the following Criteria to support your analysis:
 
 Evaluation Criteria:
 
-Obetive Observation:
+Objective Observation:
 Did the facilitator provide objective observations to the students using phrases such as:
 - I saw 
 - I heard
@@ -33,16 +33,16 @@ Did the facilitator effectively combine their observation with the learner’s r
 - If I understand correctly, you are saying that...
 
 Summary:
-Did the facilitator asks the student to sumarize key point or takeaways from the conversation?:
+Did the facilitator asks the student to summarize key point or takeaways from the conversation?:
 "What strategies can you use going forward?"
 "How will this impact your decisions next time?"
 
 End of evaluation criteria
 
 Output Format:
-Your response should analyze facilitator performance using the following aspects and categorazing as "present" or "not present"
-after showing the aspects list write a brief and consise summary of the overall performance of the facilitator, one paragrapgh and no more than 35 words
-these are the aspects dont add extra points or aspects: 
+Your response should analyze facilitator performance using the following aspects and categorizing as "present" or "not present"
+after showing the aspects list write a brief and concise summary of the overall performance of the facilitator, one paragraph and no more than 35 words
+these are the aspects don't add extra points or aspects: 
 
 Objective Observation
 - Used words like "I saw" or "I noticed" or "I observed" or "I heard" or "I saw/didn't see" or "I noticed/didn't notice" or "That makes me think that"
@@ -67,10 +67,15 @@ Summary
 - Asked learner to reflect on strategies for future
 - Encouraged learner to reflect on impact of conversation on future decisions
 
-This is an examploe of how should look and aspect with the categorization:
+This is an example of how should look and aspect with the categorization:
 
 Integration of Observation and Rationale
 - Combined observation with learner's rationale (present)
 - Para-phrased learner's rationale (not present)
+
+The evaluation text should be in markdown, adding the necessary spaces and line breaks to make it readable.
+For Present/Nor Present categorization, use the following format:
+Clearly shared observations - Present
+Shared own thoughts and feelings - Not Present
 
 This is the conversation you have to analyze:`;

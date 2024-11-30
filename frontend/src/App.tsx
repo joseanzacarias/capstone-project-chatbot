@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import 'regenerator-runtime/runtime';
 import { useRef, useState } from 'react';
 import './App.css';
@@ -46,7 +48,6 @@ function App() {
   const [generatingFeedback, setGeneratingFeedback] = useState<boolean>(false);
   const [isFeedbackGenerated, setIsFeedbackGenerated] = useState<boolean>(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string>('iP95p4xoKVk53GoZ742B');
   const selectedScenario = useRef(scenariosData[0]);
 
   const fullConversation = useRef<Message[]>([]);
@@ -63,23 +64,6 @@ function App() {
     scrollToBottom(); // Scroll to bottom on initial load
   }, []);
 
-  const voiceDetails: Record<string, { name: string; description: string; avatar: string }> = {
-    iP95p4xoKVk53GoZ742B: {
-      name: 'Chris',
-      description: 'An experienced conversationalist with a calm and soothing voice, perfect for relaxed discussions.',
-      avatar: 'https://via.placeholder.com/40',
-    },
-    IKne3meq5aSn9XLyUdCD: {
-      name: 'Charlie',
-      description: 'A friendly and enthusiastic assistant, always eager to help you out.',
-      avatar: 'https://via.placeholder.com/40',
-    },
-    cgSgspJ2msm6clMCkdW9: {
-      name: 'Jessica',
-      description: 'A sharp and witty voice, providing insightful suggestions and advice.',
-      avatar: 'https://via.placeholder.com/40',
-    },
-  };
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -156,6 +140,7 @@ function App() {
 
       const result = await res.json();
       setFeedback(result.choices[0].message.content);
+      setIsFeedbackGenerated(true);
     } catch (error) {
       console.error('Error fetching feedback:', error);
     }
@@ -194,11 +179,7 @@ function App() {
   };
 
   const onScenariosChange = (id: string | number) => {
-    console.log("scenarios changes", id);
-    console.log(typeof id);
-
     const idx = scenariosData.findIndex((s) => s.id === id)
-    console.log("current", idx);
 
     if (idx === -1) {
       console.error('Invalid scenario ID');
@@ -273,7 +254,7 @@ function App() {
           </div>
         )}
           {/* Feedback Generated */}
-        {isFeedbackGenerated && (
+        {(isFeedbackGenerated && !generatingFeedback) && (
           <div className="flex justify-start items-center px-4 py-2">
             <div className="flex items-center gap-2 text-gray-600">
               <span>Feedback generated successfully!</span>
@@ -281,10 +262,10 @@ function App() {
           </div>
         )}
         {/* Feedback */}
-        {feedback && (
+        {(feedback && !generatingFeedback) && (
           <div className="flex w-full justify-start mb-4">
             <div className="max-w-[60%] px-4 py-2 rounded-lg bg-green-300 text-black">
-              {feedback}
+              <ReactMarkdown className={'markdown'} remarkPlugins={[remarkGfm]} children={feedback}></ReactMarkdown>
             </div>
           </div>
         )}

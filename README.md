@@ -36,14 +36,14 @@ cd capstone-project-chatbot
 Create a `.env` file in the root directory to store your ElevenLabs API key:
 
 ```plaintext
-`VITE_ELEVENLABS_API_KEY=your-elevenlabs-api-key`
+VITE_ELEVENLABS_API_KEY=your-elevenlabs-api-key
 ```
 Replace `your-elevenlabs-api-key` with your ElevenLabs API key.
 
 ### 4\. Start the Development Server
 
 ```bash
-`npm run dev`
+npm run dev
 ```
 
 Access the application at <http://localhost:5173>.
@@ -92,7 +92,7 @@ Project Structure
 
 
 ```plaintext
-`src/
+  src/
   components/
     Header.tsx             # Handles scenario selection
     ChatArea.tsx           # Displays the chat conversation
@@ -102,7 +102,7 @@ Project Structure
     prompts.ts             # Scenario-specific prompts
     feedback-prompt.ts     # Feedback generation prompt
   App.tsx                  # Main application logic
-  App.css                  # Global styles`
+  App.css                  # Global styles
   ```
 
 * * * * *

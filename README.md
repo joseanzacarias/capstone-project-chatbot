@@ -1,64 +1,125 @@
 # Capstone Project Chatbot
+-------------
 
-This repository contains a chatbot application with separate **frontend** and **backend** components. The **frontend** is built using React and Vite, while the **backend** is built with Flask. The backend leverages the ElevenLabs Text-to-Speech API for audio synthesis.
+This repository contains a chatbot application built entirely in **React** with **Vite**, designed for interactive conversation and audio synthesis using the **ElevenLabs API**. The application supports dynamic scenarios, speech recognition, and real-time text-to-speech capabilities.
 
----
+* * * * *
 
-## Prerequisites
+Prerequisites
+-------------
 
 Ensure you have the following installed:
 
-- **Node.js** (v16 or later) - Download and install from: https://nodejs.org/en/download/
-- **Python** (v3.7 or later) - Download and install from: https://www.python.org/downloads/
-- **npm** (comes with Node.js) 
-- **pip** (Python package manager) - Run the following command on a terminal: py get-pip.py
+-   **Node.js** (v16 or later) - Download and install from: <https://nodejs.org/>
+-   **npm** (comes with Node.js)
 
----
+* * * * *
 
-### Installation and Setup
+Installation and Setup
+----------------------
 
-## Clone the Repository
+### 1\. Clone the Repository
 
-```bash
+bash
+```
 git clone <repository-url>
 cd capstone-project-chatbot
 ```
 
-## Frontend Setup
+### 2\. Install Frontend Dependencies
 
-Navigate to the `frontend` directory and install the dependencies:
-
-```bash
-cd frontend
-npm install
+bash
+```
+`npm install`
 ```
 
-## Start Development Server:
+### 3\. Create a `.env` File
 
-```bash
-npm run dev
+Create a `.env` file in the root directory to store your ElevenLabs API key:
+
+plaintext
+```
+`VITE_ELEVENLABS_API_KEY=your-elevenlabs-api-key`
+```
+Replace `your-elevenlabs-api-key` with your ElevenLabs API key.
+
+### 4\. Start the Development Server
+
+bash
+```
+`npm run dev`
 ```
 
-Access the application at http://localhost:5173.
+Access the application at <http://localhost:5173>.
 
-## Backend Setup
+* * * * *
 
-```bash
-cd ../backend
+Features
+--------
+
+-   **Dynamic Scenarios**: Switch between different chatbot scenarios, each with unique prompts and behaviors.
+-   **Speech Recognition**: Powered by the Web Speech API and `react-speech-recognition`, allowing voice input for interactions.
+-   **Real-Time Text-to-Speech**: Converts chatbot responses into audio using the ElevenLabs API.
+-   **Markdown Support**: Supports markdown formatting in responses for rich-text content.
+-   **Feedback Generation**: Automatically generates feedback for completed sessions.
+-   **Responsive Design**: Built with Tailwind CSS for a responsive and user-friendly interface.
+
+* * * * *
+
+Tools and Frameworks Used
+-------------------------
+
+### Core Frameworks and Libraries
+
+-   **React**: Frontend framework for building user interfaces.
+-   **Vite**: Build tool for fast development and optimized production builds.
+-   **Tailwind CSS**: Utility-first CSS framework for styling.
+-   **React Markdown**: For rendering markdown responses.
+-   **Remark GFM**: Adds GitHub Flavored Markdown support.
+
+### APIs and External Libraries
+
+-   **ElevenLabs API**: For text-to-speech synthesis.
+-   **React Speech Recognition**: For voice input and real-time speech-to-text conversion.
+
+### Developer Tools
+
+-   **TypeScript**: For type-safe development.
+-   **ESLint**: For code linting and ensuring coding standards.
+-   **PrimeReact**: For UI components like icons and styles.
+-   **Lodash**: For utility functions.
+
+* * * * *
+
+Project Structure
+-----------------
+
+plaintext
 ```
+`src/
+  components/
+    Header.tsx             # Handles scenario selection
+    ChatArea.tsx           # Displays the chat conversation
+    FeedbackArea.tsx       # Manages feedback display
+    Controls.tsx           # Provides recording and session control buttons
+  scenarios/
+    prompts.ts             # Scenario-specific prompts
+    feedback-prompt.ts     # Feedback generation prompt
+  App.tsx                  # Main application logic
+  App.css                  # Global styles`
+  ```
 
-## Create a Virtual Environment
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
+* * * * *
 
-## Install Python Dependencies
-```bash
-pip install flask flask-cors requests
-```
+Known Issues
+------------
 
-## Run the Backend Server
-```bash
-python app.py
-```
+1.  **Browser Compatibility**: The Web Speech API (used for speech recognition) is supported primarily in Google Chrome. Use Chrome for the best experience.
+
+* * * * *
+
+Future Improvements
+-------------------
+
+-   **Expanded Scenario Support**: Add more scenarios with customizable behaviors.
+-   **Accessibility Enhancements**: Improve support for screen readers and keyboard navigation.

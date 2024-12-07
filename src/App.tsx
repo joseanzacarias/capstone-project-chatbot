@@ -1,12 +1,10 @@
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import 'regenerator-runtime/runtime';
-import { useRef, useState } from 'react';
-import './App.css';
-import { TEST_SCENARIO, SECOND_SCENARIO, GOLD_STANDARD, HEALTH_GOLD_STANDARD } from './scenarios/prompts';
-import { feedbackPrompt } from './scenarios/feedback-prompt';
+import React, { useEffect, useRef, useState } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import React, { useEffect } from 'react';
+import Header from './components/Header';
+import ChatArea from './components/ChatArea';
+import Controls from './components/Controls';
+import { SECOND_SCENARIO, GOLD_STANDARD, HEALTH_GOLD_STANDARD } from './scenarios/prompts';
+import { feedbackPrompt } from './scenarios/feedback-prompt';
 
 function App() {
   interface Message {
@@ -39,8 +37,6 @@ function App() {
     
   ]
 
-
-  const [response, setResponse] = useState<string>('');
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<string>('');
@@ -104,7 +100,6 @@ function App() {
       if (!res.ok) throw new Error(`Error: ${res.statusText}`);
 
       const result = await res.json();
-      setResponse(result.choices[0].message.content);
       fullConversation.current.push({
         role: 'assistant',
         content: result.choices[0].message.content,
@@ -113,7 +108,7 @@ function App() {
         playGeneratedAudio(result.choices[0].message.content);
       }
     } catch (error) {
-      setResponse('Failed to fetch response');
+      console.error('Error fetching LLM response:', error);
     }
     setIsLoading(false);
   };
@@ -148,11 +143,16 @@ function App() {
   }
 
   const playGeneratedAudio = async (textToSpeech: string) => {
+    const API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
+    if (!API_KEY) {
+      console.error('API key is not defined');
+      return;
+    }
     try {
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${selectedScenario.current.voiceId}`, {
         method: 'POST',
         headers: {
-          'xi-api-key': 'sk_9cac98ed5ce0a3fb10bff8f2d09d13fa5c161a2b2056763a', // Replace with your ElevenLabs API key
+          'xi-api-key': API_KEY, // Replace with your ElevenLabs API key
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -209,127 +209,26 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Header */}
-      <div className="bg-gray-800 text-white p-4 shadow-md flex justify-start items-start">
-        <select
-          value={selectedScenario.current.id}
-          onChange={(e) => onScenariosChange(e.target.value)}
-          className="bg-gray-700 text-white text-base p-2 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {scenariosData.map((scenario) => (
-            <option key={scenario.name} value={scenario.id} className="text-black cursor-pointer">
-              {scenario.name} - {scenario.description}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 bg-gray-100 overflow-y-auto p-4">
-        {fullConversation.current.map(
-          (item, index) =>{
-            if(index > 1){
-            return item.role !== 'system' && (
-              <div
-                key={index}
-                className={`flex w-full ${
-                  item.role === 'user' ? 'justify-end' : 'justify-start'
-                } mb-4`}
-              >
-                <div
-                  className={`max-w-[60%] px-4 py-2 rounded-lg ${
-                    item.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-300 text-black' // Assistant text color is black
-                  }`}
-                >
-                  {item.content}
-                </div>
-              </div>
-            )}}
-        )}  
-           {/* Generating Feedback */}
-        {generatingFeedback && (
-          <div className="flex justify-start items-center px-4 py-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-transparent rounded-full"></div>
-              <span>Generating feedback...</span>
-            </div>
-          </div>
-        )}
-        {/* Waiting for Assistant */}
-        {isLoading && (
-          <div className="flex justify-start items-center px-4 py-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-transparent rounded-full"></div>
-              <span>Waiting for assistant...</span>
-            </div>
-          </div>
-        )}
-          {/* Feedback Generated */}
-        {(isFeedbackGenerated && !generatingFeedback) && (
-          <div className="flex justify-start items-center px-4 py-2">
-            <div className="flex items-center gap-2 text-gray-600">
-              <span>Feedback generated successfully!</span>
-            </div>
-          </div>
-        )}
-        {/* Feedback */}
-        {(feedback && !generatingFeedback) && (
-          <div className="flex w-full justify-start mb-4">
-            <div className="max-w-[60%] px-4 py-2 rounded-lg bg-green-300 text-black">
-              <ReactMarkdown className={'markdown'} remarkPlugins={[remarkGfm]} children={feedback}></ReactMarkdown>
-            </div>
-          </div>
-        )}
-        {/* Response */}
-        <div ref={chatEndRef}></div>
-        
-      </div>
-
-      {/* Controls */}
-      <div className="bg-white p-4 flex justify-between items-center border-t">
-          {/* Audio Bar */}
-        <audio
-          controls
-          autoPlay
-          src={audioSrc || ''}
-          className="flex-grow max-w-sm rounded-lg"
-        >
-          Your browser does not support the audio element.
-        </audio>
-        {/* Button Group */}
-        <div className="flex gap-2">
-          {/* Stop Session Button */}
-          <button
-            onClick={stopSession}
-            disabled={isRecording || isLoading}
-            className={`flex items-center justify-center px-4 py-2 rounded-full border transition-colors font-medium ${
-              (isRecording || isLoading)
-                ? 'bg-gray-200 text-gray-400 border-gray-200 cursor-not-allowed'
-                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
-            }`}
-          >
-            Stop session
-          </button>
-          
-          {/* Toggle Recording Button */}
-          <button
-            onClick={toggleRecording}
-            disabled={isLoading}
-            className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
-              isRecording
-                ? 'bg-red-500 hover:bg-red-600 text-white'
-                : isLoading
-                ? 'bg-gray-300 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
-          >
-            <i className={`fas ${isRecording ? 'fa-square' : 'fa-microphone'}`}></i>
-          </button>
-        </div>
-      </div>
-
+      <Header
+        scenariosData={scenariosData}
+        selectedScenarioId={selectedScenario.current.id}
+        onScenarioChange={onScenariosChange}
+      />
+      <ChatArea
+        conversation={fullConversation.current}
+        isLoading={isLoading}
+        generatingFeedback={generatingFeedback}
+        feedback={feedback}
+        isFeedbackGenerated={isFeedbackGenerated}
+        chatEndRef={chatEndRef}
+      />
+      <Controls
+        audioSrc={audioSrc}
+        toggleRecording={toggleRecording}
+        stopSession={stopSession}
+        isRecording={isRecording}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

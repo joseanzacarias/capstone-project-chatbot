@@ -28,7 +28,7 @@ cd capstone-project-chatbot
 ### 2\. Install Frontend Dependencies
 
 ```bash
-`npm install`
+npm install
 ```
 
 ### 3\. Create a `.env` File

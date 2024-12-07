@@ -20,21 +20,21 @@ function App() {
       name: "Basic scenario",
       description: "Lazy student scenario",
       voiceId: 'iP95p4xoKVk53GoZ742B',
-      systemPropmt: SECOND_SCENARIO
+      systemPrompt: SECOND_SCENARIO
     },
     {
       id:"2",
       name: "Confidentiality",
       description: "Gold Standard",
       voiceId: 'IKne3meq5aSn9XLyUdCD',
-      systemPropmt: GOLD_STANDARD
+      systemPrompt: GOLD_STANDARD
     },
     {
       id: "3",
       name: "Health Assesment",
       description: "Gold Standard",
       voiceId: 'cgSgspJ2msm6clMCkdW9',
-      systemPropmt: HEALTH_GOLD_STANDARD
+      systemPrompt: HEALTH_GOLD_STANDARD
     }
     
   ]
@@ -56,7 +56,7 @@ function App() {
   useEffect(() => {
     if (fullConversation.current.length > 0) return;
 
-    fullConversation.current.push({ role: 'system', content: TEST_SCENARIO });
+    fullConversation.current.push({ role: 'system', content: selectedScenario.current.systemPrompt });
     fetchLLMResponse(fullConversation.current);
   }, []);
 
@@ -87,7 +87,7 @@ function App() {
   const fetchLLMResponse = async (messages: Message[]) => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:1234/v1/chat/completions', {
+      const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ function App() {
         content: result.choices[0].message.content,
       });
       if(fullConversation.current.length > 2) {
-        // playGeneratedAudio(result.choices[0].message.content);
+        playGeneratedAudio(result.choices[0].message.content);
       }
     } catch (error) {
       setResponse('Failed to fetch response');
@@ -121,7 +121,7 @@ function App() {
   const fetchFeedback = async (feedbackMessage: string) => {
     setGeneratingFeedback(true); // Start feedback generation
     try {
-      const res = await fetch('http://localhost:1234/v1/chat/completions', {
+      const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer lm-studio`, },
         body: JSON.stringify({
@@ -149,23 +149,33 @@ function App() {
 
   const playGeneratedAudio = async (textToSpeech: string) => {
     try {
-      const res = await fetch('http://localhost:5000/synthesize', {
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${selectedScenario.current.voiceId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToSpeech, voice: selectedScenario.current.voiceId }),
+        headers: {
+          'xi-api-key': 'sk_9cac98ed5ce0a3fb10bff8f2d09d13fa5c161a2b2056763a', // Replace with your ElevenLabs API key
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: textToSpeech,
+          voice_settings: {
+            stability: 0.15,
+            similarity_boost: 0.85,
+          },
+        }),
       });
-
-      if (!res.ok) {
-        throw new Error(`Error: ${res.statusText}`);
+  
+      if (!response.ok) {
+        throw new Error(`Error: ${response.statusText}`);
       }
-
-      const audioBlob = await res.blob();
+  
+      const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       setAudioSrc(audioUrl);
     } catch (error) {
       console.error('Error fetching audio from ElevenLabs:', error);
     }
   };
+  
 
   const stopSession = async () => {
     scrollToBottom();
@@ -179,6 +189,9 @@ function App() {
   };
 
   const onScenariosChange = (id: string | number) => {
+    // clear feedback
+    setFeedback('');
+    setIsFeedbackGenerated(false);
     const idx = scenariosData.findIndex((s) => s.id === id)
 
     if (idx === -1) {
@@ -189,7 +202,7 @@ function App() {
     
     selectedScenario.current = scenariosData[idx]
     fullConversation.current = [];
-    fullConversation.current.push({ role: 'system', content: selectedScenario.current.systemPropmt });
+    fullConversation.current.push({ role: 'system', content: selectedScenario.current.systemPrompt });
     fetchLLMResponse(fullConversation.current);
 
   };

@@ -20,16 +20,14 @@ Installation and Setup
 
 ### 1\. Clone the Repository
 
-bash
-```
-git clone <repository-url>
+```bash
+git clone https://github.com/joseanzacarias/capstone-project-chatbot.git
 cd capstone-project-chatbot
 ```
 
 ### 2\. Install Frontend Dependencies
 
-bash
-```
+```bash
 `npm install`
 ```
 
@@ -37,16 +35,14 @@ bash
 
 Create a `.env` file in the root directory to store your ElevenLabs API key:
 
-plaintext
-```
+```plaintext
 `VITE_ELEVENLABS_API_KEY=your-elevenlabs-api-key`
 ```
 Replace `your-elevenlabs-api-key` with your ElevenLabs API key.
 
 ### 4\. Start the Development Server
 
-bash
-```
+```bash
 `npm run dev`
 ```
 
@@ -94,8 +90,8 @@ Tools and Frameworks Used
 Project Structure
 -----------------
 
-plaintext
-```
+
+```plaintext
 `src/
   components/
     Header.tsx             # Handles scenario selection

@@ -3,7 +3,7 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 import Header from './components/Header';
 import ChatArea from './components/ChatArea';
 import Controls from './components/Controls';
-import { SECOND_SCENARIO, GOLD_STANDARD, HEALTH_GOLD_STANDARD } from './scenarios/prompts';
+import { HEALTH_DELTA_2, HEALTH_GOLD_STANDARD, CONFIDENTIALITY_GOLD_STANDAR } from './scenarios/prompts';
 import { feedbackPrompt } from './scenarios/feedback-prompt';
 
 function App() {
@@ -15,23 +15,23 @@ function App() {
   const scenariosData = [
     {
       id: "1",
-      name: "Basic scenario",
-      description: "Lazy student scenario",
-      voiceId: 'iP95p4xoKVk53GoZ742B',
-      systemPrompt: SECOND_SCENARIO
+      name: "Health Assesment",
+      description: "Delta 2",
+      voiceId: 'cgSgspJ2msm6clMCkdW9',
+      systemPrompt: HEALTH_DELTA_2
     },
     {
       id:"2",
       name: "Confidentiality",
       description: "Gold Standard",
       voiceId: 'IKne3meq5aSn9XLyUdCD',
-      systemPrompt: GOLD_STANDARD
+      systemPrompt: CONFIDENTIALITY_GOLD_STANDAR
     },
     {
       id: "3",
       name: "Health Assesment",
       description: "Gold Standard",
-      voiceId: 'cgSgspJ2msm6clMCkdW9',
+      voiceId: 'iP95p4xoKVk53GoZ742B',
       systemPrompt: HEALTH_GOLD_STANDARD
     }
     
@@ -83,7 +83,7 @@ function App() {
   const fetchLLMResponse = async (messages: Message[]) => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
+      const res = await fetch('http://localhost:1234/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +116,7 @@ function App() {
   const fetchFeedback = async (feedbackMessage: string) => {
     setGeneratingFeedback(true); // Start feedback generation
     try {
-      const res = await fetch('http://192.168.2.15:1234/v1/chat/completions', {
+      const res = await fetch('http://localhost:1234/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer lm-studio`, },
         body: JSON.stringify({
@@ -160,6 +160,9 @@ function App() {
           voice_settings: {
             stability: 0.15,
             similarity_boost: 0.85,
+            // stability: 0.75,
+            // similarity_boost: 0.3,
+            // speed: 0.9
           },
         }),
       });
